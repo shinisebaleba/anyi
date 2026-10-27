@@ -1,0 +1,369 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>🐸 Anyi Sapa - Oficial</title>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🐸</text></svg>">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Bagel+Fat+One&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --pond-deep: #07403f;
+    --pond-light: #1b8a6b;
+    --cream: #fff1a8;
+    --pink: #ff3d8b;
+    --cyan: #2fe0ff;
+  }
+  * { box-sizing: border-box; margin: 0; }
+  html, body { height: 100%; overflow: hidden; }
+  body {
+    background: radial-gradient(ellipse at 50% 70%, var(--pond-light), var(--pond-deep) 78%);
+    font-family: "Bagel Fat One", Impact, "Arial Black", sans-serif;
+    color: var(--cream);
+    -webkit-tap-highlight-color: transparent;
+    user-select: none;
+    touch-action: none;
+    cursor: crosshair;
+  }
+
+  /* Título arriba */
+  .title {
+    position: absolute; top: 0; left: 0; right: 0;
+    display: flex; flex-wrap: wrap; justify-content: center; align-items: baseline;
+    column-gap: .28em;
+    padding: calc(3vh + env(safe-area-inset-top, 0px)) 3vw 0;
+    font-weight: 400;
+    font-size: min(14.5vw, 26vh);
+    line-height: .95;
+    pointer-events: none;
+    z-index: 2;
+  }
+  .word {
+    position: relative; display: inline-block;
+    color: var(--cream);
+    text-shadow: 0 .045em 0 rgba(0,0,0,.28);
+    animation: shake 3.2s infinite;
+  }
+  .word::before, .word::after {
+    content: attr(data-text);
+    position: absolute; inset: 0; overflow: hidden;
+  }
+  .word::before { color: var(--pink); animation: glitch-a 2.4s infinite steps(1); mix-blend-mode: screen; }
+  .word::after  { color: var(--cyan); animation: glitch-b 2.9s infinite steps(1); mix-blend-mode: screen; }
+
+  @keyframes shake {
+    0%, 86%, 100% { transform: translate(0,0) rotate(0); }
+    88% { transform: translate(-.6%, .4%) rotate(-.6deg); }
+    90% { transform: translate(.7%, -.3%) rotate(.5deg); }
+    92% { transform: translate(-.4%, -.5%) rotate(-.3deg); }
+    94% { transform: translate(.5%, .4%) rotate(.4deg); }
+  }
+  @keyframes glitch-a {
+    0%, 82%, 100% { transform: translate(0); clip-path: inset(0 0 100% 0); }
+    84% { transform: translate(-.05em, 0); clip-path: inset(12% 0 60% 0); }
+    90% { transform: translate(.06em, 0);  clip-path: inset(58% 0 14% 0); }
+    95% { transform: translate(-.03em, 0); clip-path: inset(30% 0 40% 0); }
+  }
+  @keyframes glitch-b {
+    0%, 78%, 100% { transform: translate(0); clip-path: inset(0 0 100% 0); }
+    80% { transform: translate(.06em, 0);  clip-path: inset(66% 0 8% 0); }
+    87% { transform: translate(-.05em, 0); clip-path: inset(8% 0 70% 0); }
+    93% { transform: translate(.04em, 0);  clip-path: inset(40% 0 30% 0); }
+  }
+
+  @media (max-width: 640px) {
+    .title { font-size: min(27vw, 17vh); }
+  }
+
+  /* Sapo */
+  #frog {
+    position: absolute; left: 50%; bottom: calc(2vh + env(safe-area-inset-bottom, 0px));
+    width: min(72vw, 44vh, 460px);
+    margin-left: calc(min(72vw, 44vh, 460px) / -2);
+    will-change: transform;
+    z-index: 3;
+    filter: drop-shadow(0 10px 8px rgba(0,0,0,.35));
+  }
+  #frog svg { display: block; width: 100%; height: auto; overflow: visible; }
+
+  /* Lengua (pantalla completa) */
+  #tongue {
+    position: fixed; inset: 0; width: 100%; height: 100%;
+    pointer-events: none; z-index: 4;
+  }
+
+  /* Moscas */
+  .fly {
+    position: absolute; top: 0; left: 0;
+    font-size: 30px; line-height: 1;
+    pointer-events: none; z-index: 1;
+    will-change: transform;
+    filter: drop-shadow(0 3px 2px rgba(0,0,0,.35));
+  }
+
+  .fly svg { display: block; width: 30px; height: 30px; overflow: visible; }
+  .fly .wings { transform-origin: 15px 12px; animation: flap .09s infinite alternate; }
+  @keyframes flap { from { transform: scaleY(1); } to { transform: scaleY(.55); } }
+  @media (prefers-reduced-motion: reduce) { .fly .wings { animation: none; } }
+
+  .bit { position: fixed; top: 0; left: 0; pointer-events: none; line-height: 1; z-index: 10; }
+
+  .hint {
+    position: absolute; left: 0; right: 0;
+    top: 50%;
+    text-align: center;
+    font-size: 1.05rem;
+    color: var(--cream); opacity: .85;
+    pointer-events: none; z-index: 2;
+    transition: opacity .6s;
+  }
+  .hint.gone { opacity: 0; }
+
+  @media (prefers-reduced-motion: reduce) {
+    .word, .word::before, .word::after { animation: none; }
+  }
+</style>
+</head>
+<body>
+
+<h1 class="title" aria-label="Anyi Sapa">
+  <span class="word" data-text="ANYI">ANYI</span>
+  <span class="word" data-text="SAPA">SAPA</span>
+</h1>
+
+<p class="hint" id="hint">Mueve el mouse o arrastra el dedo</p>
+
+<div id="frog" aria-hidden="true">
+  <svg viewBox="0 0 300 240" xmlns="http://www.w3.org/2000/svg">
+    <!-- patas traseras -->
+    <ellipse cx="46" cy="206" rx="40" ry="22" fill="#4cc24a" stroke="#1d6b2c" stroke-width="6"/>
+    <ellipse cx="254" cy="206" rx="40" ry="22" fill="#4cc24a" stroke="#1d6b2c" stroke-width="6"/>
+    <!-- bultos de los ojos -->
+    <circle cx="95" cy="75" r="40" fill="#4cc24a" stroke="#1d6b2c" stroke-width="6"/>
+    <circle cx="205" cy="75" r="40" fill="#4cc24a" stroke="#1d6b2c" stroke-width="6"/>
+    <!-- cuerpo -->
+    <ellipse cx="150" cy="150" rx="118" ry="82" fill="#4cc24a" stroke="#1d6b2c" stroke-width="6"/>
+    <ellipse cx="150" cy="192" rx="74" ry="36" fill="#c9f59a"/>
+    <!-- ojos -->
+    <circle cx="95" cy="75" r="27" fill="#fff" stroke="#1d6b2c" stroke-width="4"/>
+    <circle cx="205" cy="75" r="27" fill="#fff" stroke="#1d6b2c" stroke-width="4"/>
+    <g transform="translate(95,75)"><g id="pupL"><circle r="13" fill="#161616"/><circle cx="-4" cy="-5" r="4" fill="#fff"/></g></g>
+    <g transform="translate(205,75)"><g id="pupR"><circle r="13" fill="#161616"/><circle cx="-4" cy="-5" r="4" fill="#fff"/></g></g>
+    <!-- mejillas y fosas -->
+    <circle cx="60" cy="142" r="15" fill="#ff8fb1" opacity=".7"/>
+    <circle cx="240" cy="142" r="15" fill="#ff8fb1" opacity=".7"/>
+    <circle cx="138" cy="118" r="3.5" fill="#1d6b2c"/>
+    <circle cx="162" cy="118" r="3.5" fill="#1d6b2c"/>
+    <!-- boca abierta -->
+    <path d="M70 146 Q150 205 230 146 Q150 160 70 146Z" fill="#7d1d33" stroke="#1d6b2c" stroke-width="6" stroke-linejoin="round"/>
+    <ellipse cx="150" cy="166" rx="30" ry="9" fill="#ff5c8a"/>
+  </svg>
+</div>
+
+<svg id="tongue" xmlns="http://www.w3.org/2000/svg" aria-hidden="true"></svg>
+
+<script>
+(function () {
+  var reduce = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+  var W = innerWidth, H = innerHeight;
+  addEventListener("resize", function () { W = innerWidth; H = innerHeight; });
+
+  /* ---------- Sonido (solo tras el primer toque/clic) ---------- */
+  var ctx = null;
+  function initAudio() {
+    if (ctx) { if (ctx.state === "suspended") ctx.resume(); return; }
+    try { ctx = new (window.AudioContext || window.webkitAudioContext)(); } catch (e) {}
+  }
+  function gulp() {
+    if (!ctx || ctx.state !== "running") return;
+    var t = ctx.currentTime, o = ctx.createOscillator(), g = ctx.createGain();
+    o.type = "sine";
+    o.frequency.setValueAtTime(420, t);
+    o.frequency.exponentialRampToValueAtTime(110, t + 0.16);
+    g.gain.setValueAtTime(0.0001, t);
+    g.gain.exponentialRampToValueAtTime(0.35, t + 0.02);
+    g.gain.exponentialRampToValueAtTime(0.0001, t + 0.18);
+    o.connect(g); g.connect(ctx.destination);
+    o.start(t); o.stop(t + 0.2);
+  }
+  function croak() {
+    if (!ctx || ctx.state !== "running") return;
+    var t = ctx.currentTime, dur = 0.3, base = 120 + Math.random() * 40;
+    var o = ctx.createOscillator(), a = ctx.createGain();
+    var l = ctx.createOscillator(), lg = ctx.createGain();
+    var lp = ctx.createBiquadFilter();
+    o.type = "sawtooth";
+    o.frequency.setValueAtTime(base * 1.6, t);
+    o.frequency.exponentialRampToValueAtTime(base, t + dur);
+    l.frequency.value = 30; lg.gain.value = 0.35;
+    a.gain.setValueAtTime(0.0001, t);
+    a.gain.exponentialRampToValueAtTime(0.5, t + 0.03);
+    a.gain.exponentialRampToValueAtTime(0.0001, t + dur);
+    lp.type = "lowpass"; lp.frequency.value = 900;
+    l.connect(lg); lg.connect(a.gain);
+    o.connect(lp); lp.connect(a); a.connect(ctx.destination);
+    o.start(t); l.start(t); o.stop(t + dur); l.stop(t + dur);
+  }
+
+  /* ---------- Efecto al atrapar una mosca ---------- */
+  var bits = ["✨", "💚", "⭐", "✨"];
+  function pop(x, y) {
+    if (reduce) return;
+    for (var i = 0; i < 8; i++) {
+      var el = document.createElement("span");
+      el.className = "bit";
+      el.textContent = bits[i % bits.length];
+      el.style.fontSize = (14 + Math.random() * 12) + "px";
+      document.body.appendChild(el);
+      var a = Math.random() * 6.283, d = 40 + Math.random() * 80;
+      el.animate([
+        { transform: "translate(" + x + "px," + y + "px) scale(1)", opacity: 1 },
+        { transform: "translate(" + (x + Math.cos(a) * d) + "px," + (y + Math.sin(a) * d + 30) + "px) scale(.3)", opacity: 0 }
+      ], { duration: 600 + Math.random() * 300, easing: "ease-out" })
+        .onfinish = (function (n) { return function () { n.remove(); }; })(el);
+    }
+  }
+
+  /* ---------- Moscas ---------- */
+  var FLY_SVG =
+    '<svg viewBox="0 0 30 30" xmlns="http://www.w3.org/2000/svg">' +
+    '<g class="wings"><ellipse cx="9" cy="11" rx="8" ry="4.5" transform="rotate(-35 9 11)" fill="#e8fbff" fill-opacity=".75" stroke="#9fd6e0" stroke-width=".8"/>' +
+    '<ellipse cx="21" cy="11" rx="8" ry="4.5" transform="rotate(35 21 11)" fill="#e8fbff" fill-opacity=".75" stroke="#9fd6e0" stroke-width=".8"/></g>' +
+    '<ellipse cx="15" cy="19" rx="5.5" ry="8" fill="#2a2a2e"/>' +
+    '<circle cx="15" cy="10" r="4.5" fill="#3a3a40"/>' +
+    '<circle cx="12.6" cy="8.8" r="2" fill="#e5283c"/><circle cx="17.4" cy="8.8" r="2" fill="#e5283c"/>' +
+    '<path d="M12 17 Q15 15 18 17 M11.5 21 Q15 19 18.5 21" stroke="#555" stroke-width="1" fill="none"/>' +
+    '</svg>';
+  var flies = [];
+  var NF = W < 600 ? 7 : 11;
+  function placeFly(f, edge) {
+    if (edge) {
+      var side = Math.floor(Math.random() * 4);
+      f.x = side === 0 ? -30 : side === 1 ? W + 30 : Math.random() * W;
+      f.y = side === 2 ? -30 : side === 3 ? H + 30 : Math.random() * H;
+    } else {
+      f.x = Math.random() * W; f.y = Math.random() * H;
+    }
+    f.a = Math.random() * 6.283;
+    f.sp = 1.1 + Math.random() * 1.6;
+    f.hidden = 0;
+    f.el.style.display = "";
+  }
+  for (var i = 0; i < NF; i++) {
+    var el = document.createElement("div");
+    el.className = "fly";
+    el.innerHTML = FLY_SVG;
+    document.body.appendChild(el);
+    var f = { el: el };
+    placeFly(f, false);
+    flies.push(f);
+  }
+
+  /* ---------- Sapo y lengua ---------- */
+  var frog = document.getElementById("frog");
+  var pupL = document.getElementById("pupL"), pupR = document.getElementById("pupR");
+  var tongue = document.getElementById("tongue");
+  var NS = "http://www.w3.org/2000/svg";
+  function mk(tag, attrs) {
+    var e = document.createElementNS(NS, tag);
+    for (var k in attrs) e.setAttribute(k, attrs[k]);
+    tongue.appendChild(e);
+    return e;
+  }
+  var tBody = mk("path", { fill: "none", stroke: "#ff4f87", "stroke-linecap": "round" });
+  var tShine = mk("path", { fill: "none", stroke: "#ff9fbd", "stroke-linecap": "round", opacity: ".8" });
+  var tTip = mk("circle", { fill: "#ff6b9a" });
+
+  var px = null, py = null;           // posición del puntero
+  var frogShift = 0;                   // desplazamiento horizontal del sapo
+  var tipX = null, tipY = null;        // punta actual de la lengua
+  var hint = document.getElementById("hint");
+
+  function setPointer(e) {
+    px = e.clientX; py = e.clientY;
+    hint.classList.add("gone");
+  }
+  addEventListener("pointermove", setPointer);
+  addEventListener("pointerdown", function (e) { setPointer(e); initAudio(); croak(); });
+
+  var t0 = performance.now();
+  function frame(now) {
+    var time = (now - t0) / 1000;
+
+    // El sapo se desliza hacia el puntero (solo en horizontal)
+    var fr = frog.getBoundingClientRect();
+    var fw = fr.width;
+    var limit = Math.max(0, W / 2 - fw / 2 - 8);
+    var goalShift = px === null ? 0 : Math.max(-limit, Math.min(limit, px - W / 2));
+    frogShift += (goalShift - frogShift) * 0.07;
+    frog.style.transform = "translateX(" + frogShift.toFixed(2) + "px)";
+    fr = frog.getBoundingClientRect();
+
+    // Boca (punto de origen de la lengua), según el dibujo 300x240
+    var mx = fr.left + fr.width * 0.5;
+    var my = fr.top + fr.height * (166 / 240);
+
+    // Pupilas siguen al puntero
+    var tx = px === null ? mx : px, ty = py === null ? my - 200 : py;
+    var cx = fr.left + fr.width * 0.5, cy = fr.top + fr.height * 0.3;
+    var ang = Math.atan2(ty - cy, tx - cx);
+    var pr = 12;
+    var off = "translate(" + (Math.cos(ang) * pr).toFixed(2) + "," + (Math.sin(ang) * pr).toFixed(2) + ")";
+    pupL.setAttribute("transform", off);
+    pupR.setAttribute("transform", off);
+
+    // Objetivo de la lengua: llega hasta el puntero, con alcance máximo
+    var gx, gy;
+    if (px === null) { gx = mx; gy = my + fr.height * 0.28; }   // colgando sobre la barriga
+    else {
+      var dx = px - mx, dy = py - my, d = Math.hypot(dx, dy) || 1;
+      var reach = Math.min(d, Math.max(H * 0.85, 320));
+      gx = mx + dx / d * reach; gy = my + dy / d * reach;
+    }
+    if (tipX === null) { tipX = mx; tipY = my; }
+    tipX += (gx - tipX) * 0.2; tipY += (gy - tipY) * 0.2;
+
+    // Dibujo de la lengua con un leve ondeo
+    var lx = tipX - mx, ly = tipY - my, len = Math.hypot(lx, ly) || 1;
+    var nx = -ly / len, ny = lx / len;
+    var wob = Math.min(14, len * 0.06) * Math.sin(time * 7);
+    var cxm = mx + lx / 2 + nx * wob, cym = my + ly / 2 + ny * wob;
+    var wdt = Math.max(10, fr.width * 0.052);
+    var d1 = "M" + mx + " " + my + " Q" + cxm + " " + cym + " " + tipX + " " + tipY;
+    tBody.setAttribute("d", d1); tBody.setAttribute("stroke-width", wdt);
+    tShine.setAttribute("d", d1); tShine.setAttribute("stroke-width", wdt * 0.28);
+    tTip.setAttribute("cx", tipX); tTip.setAttribute("cy", tipY); tTip.setAttribute("r", wdt * 0.78);
+
+    // Moscas: vuelan en zigzag y desaparecen si la lengua las toca
+    for (var i = 0; i < flies.length; i++) {
+      var f = flies[i];
+      if (f.hidden) {
+        if (now > f.hidden) placeFly(f, true);
+        continue;
+      }
+      if (!reduce) {
+        f.a += (Math.random() - 0.5) * 0.45;
+        f.x += Math.cos(f.a) * f.sp; f.y += Math.sin(f.a) * f.sp;
+        if (f.x < -40) { f.x = -40; f.a = 0; }
+        if (f.x > W + 10) { f.x = W + 10; f.a = Math.PI; }
+        if (f.y < -40) { f.y = -40; f.a = Math.PI / 2; }
+        if (f.y > H + 10) { f.y = H + 10; f.a = -Math.PI / 2; }
+      }
+      var jx = reduce ? 0 : (Math.random() - 0.5) * 2.5, jy = reduce ? 0 : (Math.random() - 0.5) * 2.5;
+      f.el.style.transform = "translate(" + (f.x + jx) + "px," + (f.y + jy) + "px)";
+      if (px !== null && Math.hypot(f.x + 15 - tipX, f.y + 15 - tipY) < wdt * 1.6 + 14) {
+        f.el.style.display = "none";
+        f.hidden = now + 1200;
+        pop(f.x + 15, f.y + 15);
+        gulp();
+      }
+    }
+    requestAnimationFrame(frame);
+  }
+  requestAnimationFrame(frame);
+})();
+</script>
+</body>
+</html>
