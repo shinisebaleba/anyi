@@ -108,6 +108,23 @@
   @keyframes flap { from { transform: scaleY(1); } to { transform: scaleY(.55); } }
   @media (prefers-reduced-motion: reduce) { .fly .wings { animation: none; } }
 
+  .score {
+    position: fixed;
+    left: calc(14px + env(safe-area-inset-left, 0px));
+    bottom: calc(14px + env(safe-area-inset-bottom, 0px));
+    z-index: 5;
+    padding: .45em .9em;
+    border-radius: 999px;
+    background: rgba(0,0,0,.35);
+    color: var(--cream);
+    font-size: 1.1rem;
+    pointer-events: none;
+    font-variant-numeric: tabular-nums;
+  }
+  .score b { font-weight: 400; display: inline-block; min-width: 1ch; }
+  .score b.bump { animation: bump .3s ease-out; }
+  @keyframes bump { 40% { transform: scale(1.6); color: var(--pink); } }
+
   .bit { position: fixed; top: 0; left: 0; pointer-events: none; line-height: 1; z-index: 10; }
 
   .hint {
@@ -132,6 +149,8 @@
   <span class="word" data-text="ANYI">ANYI</span>
   <span class="word" data-text="SAPA">SAPA</span>
 </h1>
+
+<div class="score" aria-live="polite">Moscas comidas: <b id="count">0</b></div>
 
 <p class="hint" id="hint">Mueve el mouse o arrastra el dedo</p>
 
@@ -280,6 +299,8 @@
   var frogShift = 0;                   // desplazamiento horizontal del sapo
   var tipX = null, tipY = null;        // punta actual de la lengua
   var hint = document.getElementById("hint");
+  var countEl = document.getElementById("count");
+  var eaten = 0;
 
   function setPointer(e) {
     px = e.clientX; py = e.clientY;
@@ -358,6 +379,11 @@
         f.hidden = now + 1200;
         pop(f.x + 15, f.y + 15);
         gulp();
+        eaten++;
+        countEl.textContent = eaten;
+        countEl.classList.remove("bump");
+        void countEl.offsetWidth;
+        countEl.classList.add("bump");
       }
     }
     requestAnimationFrame(frame);
