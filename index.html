@@ -125,6 +125,34 @@
   .score b.bump { animation: bump .3s ease-out; }
   @keyframes bump { 40% { transform: scale(1.6); color: var(--pink); } }
 
+  .score.play { display: flex; gap: 1.1em; font-size: 1.3rem; }
+  .score.urgent { background: var(--pink); animation: pulse .5s infinite alternate; }
+  @keyframes pulse { to { transform: scale(1.06); } }
+
+  .start { position: absolute; left: 0; right: 0; top: 44%; transform: translateY(-50%); text-align: center; z-index: 5; }
+  .start.hide, .card { display: none; }
+  .start .hint { position: static; margin-top: .9rem; }
+
+  .card {
+    position: fixed; left: 50%; top: 46%; transform: translate(-50%, -50%);
+    z-index: 6; width: min(88vw, 420px); padding: 1.4rem 1.4rem 1.2rem;
+    text-align: center; background: rgba(7,64,63,.94);
+    border: 3px solid var(--cream); border-radius: 20px;
+    box-shadow: 0 14px 40px rgba(0,0,0,.45);
+  }
+  .card.show { display: block; animation: cardIn .25s ease-out; }
+  @keyframes cardIn { from { opacity: 0; transform: translate(-50%, -46%) scale(.96); } }
+  .card h2 { font-weight: 400; font-size: clamp(1.6rem, 6vw, 2.2rem); line-height: 1.05; margin-bottom: .5rem; }
+  .card p { font-family: system-ui, sans-serif; font-size: 1rem; line-height: 1.4; margin-bottom: 1rem; }
+  .btn {
+    font: inherit; font-size: 1.2rem; color: #fff; background: var(--pink);
+    border: 0; border-radius: 999px; padding: .55em 1.4em; cursor: pointer;
+    box-shadow: 0 4px 0 #b02060; touch-action: manipulation;
+  }
+  .btn:active { transform: translateY(2px); box-shadow: 0 2px 0 #b02060; }
+  .btn.ghost { background: transparent; color: var(--cream); box-shadow: none; border: 2px solid var(--cream); font-size: 1rem; margin: .5rem .25rem 0; }
+  .btn:focus-visible { outline: 3px solid var(--cream); outline-offset: 3px; }
+
   .bit { position: fixed; top: 0; left: 0; pointer-events: none; line-height: 1; z-index: 10; }
 
   .hint {
@@ -150,9 +178,14 @@
   <span class="word" data-text="SAPA">SAPA</span>
 </h1>
 
-<div class="score" aria-live="polite">Moscas comidas: <b id="count">0</b></div>
+<div class="score" id="score"></div>
 
-<p class="hint" id="hint">Mueve el mouse o arrastra el dedo</p>
+<div class="start" id="start">
+  <button class="btn" id="playBtn" type="button">Jugar</button>
+  <p class="hint" id="hint">Mueve el mouse o arrastra el dedo</p>
+</div>
+
+<div class="card" id="card" role="dialog" aria-live="polite"></div>
 
 <div id="frog" aria-hidden="true">
   <svg viewBox="0 0 300 240" xmlns="http://www.w3.org/2000/svg">
@@ -299,8 +332,103 @@
   var frogShift = 0;                   // desplazamiento horizontal del sapo
   var tipX = null, tipY = null;        // punta actual de la lengua
   var hint = document.getElementById("hint");
-  var countEl = document.getElementById("count");
-  var eaten = 0;
+  var scoreEl = document.getElementById("score");
+  var startBox = document.getElementById("start");
+  var card = document.getElementById("card");
+  var eaten = 0;                       // contador del modo libre
+  var game = { mode: "free", round: 0, got: 0, target: 0, secs: 0, end: 0, speed: 1, total: 0 };
+  var best = 0;
+  try { best = +localStorage.getItem("anyisapa-best") || 0; } catch (e) {}
+
+  function roundTarget(r) { return 3 + 2 * r; }              // 5, 7, 9, 11...
+  function roundTime(r) { return Math.max(10, 16 - r); }     // 15, 14, 13... mínimo 10 s
+
+  function renderHud() {
+    if (game.mode === "free") {
+      scoreEl.className = "score";
+      scoreEl.innerHTML = 'Moscas comidas: <b>' + eaten + '</b>';
+    } else {
+      scoreEl.className = "score play" + (game.mode === "play" && game.secs <= 5 ? " urgent" : "");
+      scoreEl.innerHTML = '<span>Ronda ' + game.round + '</span><span><b>' + game.got + '/' + game.target +
+        '</b> moscas</span><span>' + game.secs + ' s</span>';
+    }
+  }
+  function bump() {
+    var b = scoreEl.querySelector("b");
+    if (!b) return;
+    b.classList.remove("bump"); void b.offsetWidth; b.classList.add("bump");
+  }
+  function chime(win) {
+    if (!ctx || ctx.state !== "running") return;
+    (win ? [523, 659, 784] : [300, 220, 160]).forEach(function (fq, i) {
+      var t = ctx.currentTime + i * 0.12, o = ctx.createOscillator(), g = ctx.createGain();
+      o.type = win ? "triangle" : "sawtooth"; o.frequency.value = fq;
+      g.gain.setValueAtTime(0.0001, t);
+      g.gain.exponentialRampToValueAtTime(0.25, t + 0.02);
+      g.gain.exponentialRampToValueAtTime(0.0001, t + 0.18);
+      o.connect(g); g.connect(ctx.destination); o.start(t); o.stop(t + 0.2);
+    });
+  }
+  function showCard(title, text, label, fn, label2, fn2) {
+    card.innerHTML = "";
+    var h = document.createElement("h2"); h.textContent = title;
+    var p = document.createElement("p"); p.textContent = text;
+    var b = document.createElement("button"); b.className = "btn"; b.type = "button"; b.textContent = label;
+    b.addEventListener("click", fn);
+    card.appendChild(h); card.appendChild(p); card.appendChild(b);
+    if (label2) {
+      var b2 = document.createElement("button"); b2.className = "btn ghost"; b2.type = "button"; b2.textContent = label2;
+      b2.addEventListener("click", fn2); card.appendChild(b2);
+    }
+    card.classList.add("show");
+    b.focus({ preventScroll: true });
+  }
+  function startRound(r) {
+    if (r === 1) game.total = 0;
+    game.round = r; game.got = 0; game.target = roundTarget(r);
+    game.speed = 1 + 0.1 * (r - 1);
+    game.secs = roundTime(r);
+    game.end = performance.now() + game.secs * 1000;
+    game.mode = "play";
+    card.classList.remove("show");
+    startBox.classList.add("hide");
+    renderHud();
+  }
+  function winRound() {
+    var left = Math.max(0, Math.ceil((game.end - performance.now()) / 1000));
+    game.mode = "between";
+    if (game.round > best) { best = game.round; try { localStorage.setItem("anyisapa-best", best); } catch (e) {} }
+    chime(true); renderHud();
+    var n = game.round + 1;
+    showCard("¡Ronda " + game.round + " superada!",
+      "Te sobraron " + left + " s. La ronda " + n + " pide " + roundTarget(n) + " moscas en " + roundTime(n) + " s y ellas vuelan más rápido.",
+      "Siguiente ronda", function () { startRound(n); });
+  }
+  function loseRound() {
+    game.mode = "over"; game.secs = 0;
+    chime(false); renderHud();
+    var done = game.round - 1;
+    showCard("¡Se acabó el tiempo!",
+      "Rondas superadas: " + done + ". Moscas comidas en total: " + game.total + "." + (best ? " Récord: " + best + " rondas." : ""),
+      "Jugar de nuevo", function () { startRound(1); },
+      "Modo libre", function () {
+        game.mode = "free"; card.classList.remove("show"); startBox.classList.remove("hide"); renderHud();
+      });
+  }
+  function onEat() {
+    if (game.mode === "free") { eaten++; renderHud(); bump(); return; }
+    game.got++; game.total++; renderHud(); bump();
+    if (game.got >= game.target) winRound();
+  }
+  function tick(now) {
+    if (game.mode !== "play") return;
+    var rem = (game.end - now) / 1000;
+    if (rem <= 0) { loseRound(); return; }
+    var s = Math.ceil(rem);
+    if (s !== game.secs) { game.secs = s; renderHud(); }
+  }
+  document.getElementById("playBtn").addEventListener("click", function () { initAudio(); startRound(1); });
+  renderHud();
 
   function setPointer(e) {
     px = e.clientX; py = e.clientY;
@@ -312,6 +440,7 @@
   var t0 = performance.now();
   function frame(now) {
     var time = (now - t0) / 1000;
+    tick(now);
 
     // El sapo se desliza hacia el puntero (solo en horizontal)
     var fr = frog.getBoundingClientRect();
@@ -366,7 +495,7 @@
       }
       if (!reduce) {
         f.a += (Math.random() - 0.5) * 0.45;
-        f.x += Math.cos(f.a) * f.sp; f.y += Math.sin(f.a) * f.sp;
+        f.x += Math.cos(f.a) * f.sp * game.speed; f.y += Math.sin(f.a) * f.sp * game.speed;
         if (f.x < -40) { f.x = -40; f.a = 0; }
         if (f.x > W + 10) { f.x = W + 10; f.a = Math.PI; }
         if (f.y < -40) { f.y = -40; f.a = Math.PI / 2; }
@@ -374,16 +503,12 @@
       }
       var jx = reduce ? 0 : (Math.random() - 0.5) * 2.5, jy = reduce ? 0 : (Math.random() - 0.5) * 2.5;
       f.el.style.transform = "translate(" + (f.x + jx) + "px," + (f.y + jy) + "px)";
-      if (px !== null && Math.hypot(f.x + 15 - tipX, f.y + 15 - tipY) < wdt * 1.6 + 14) {
+      if (px !== null && (game.mode === "free" || game.mode === "play") && Math.hypot(f.x + 15 - tipX, f.y + 15 - tipY) < wdt * 1.6 + 14) {
         f.el.style.display = "none";
-        f.hidden = now + 1200;
+        f.hidden = now + (game.mode === "play" ? 500 : 1200);
         pop(f.x + 15, f.y + 15);
         gulp();
-        eaten++;
-        countEl.textContent = eaten;
-        countEl.classList.remove("bump");
-        void countEl.offsetWidth;
-        countEl.classList.add("bump");
+        onEat();
       }
     }
     requestAnimationFrame(frame);
