@@ -153,6 +153,11 @@
   .btn.ghost { background: transparent; color: var(--cream); box-shadow: none; border: 2px solid var(--cream); font-size: 1rem; margin: .5rem .25rem 0; }
   .btn:focus-visible { outline: 3px solid var(--cream); outline-offset: 3px; }
 
+  .score { z-index: 6; }
+  .start .btn { margin: .3rem; }
+  .snake-cv { position: fixed; inset: 0; width: 100%; height: 100%; z-index: 5; touch-action: none; cursor: pointer; }
+  .exit { position: fixed; top: calc(10px + env(safe-area-inset-top, 0px)); right: 12px; z-index: 7; margin: 0 !important; }
+
   .bit { position: fixed; top: 0; left: 0; pointer-events: none; line-height: 1; z-index: 10; }
 
   .hint {
@@ -181,11 +186,15 @@
 <div class="score" id="score"></div>
 
 <div class="start" id="start">
-  <button class="btn" id="playBtn" type="button">Jugar</button>
+  <button class="btn" id="playBtn" type="button">Cazar moscas</button>
+  <button class="btn" id="snakeBtn" type="button">Snake</button>
   <p class="hint" id="hint">Mueve el mouse o arrastra el dedo</p>
 </div>
 
 <div class="card" id="card" role="dialog" aria-live="polite"></div>
+
+<canvas id="snakeCv" class="snake-cv" hidden></canvas>
+<button class="btn ghost exit" id="exitBtn" type="button" hidden>Salir</button>
 
 <div id="frog" aria-hidden="true">
   <svg viewBox="0 0 300 240" xmlns="http://www.w3.org/2000/svg">
@@ -427,6 +436,189 @@
     var s = Math.ceil(rem);
     if (s !== game.secs) { game.secs = s; renderHud(); }
   }
+
+  /* ================= SNAKE: la lengua es la cola ================= */
+  var cv = document.getElementById("snakeCv"), c2 = cv.getContext("2d");
+  var exitBtn = document.getElementById("exitBtn");
+  var sn = { on: false, cell: 32, cols: 0, rows: 0, ox: 0, oy: 0, body: [], dir: null, face: { x: 0, y: -1 },
+             q: [], fly: null, score: 0, dead: false, acc: 0, last: 0, step: 150, raf: 0, px: null, py: null };
+  var snBest = 0;
+  try { snBest = +localStorage.getItem("anyisapa-snake-best") || 0; } catch (e) {}
+
+  function snSetup() {
+    var dpr = window.devicePixelRatio || 1;
+    cv.width = W * dpr; cv.height = H * dpr;
+    c2.setTransform(dpr, 0, 0, dpr, 0, 0);
+    sn.cell = Math.max(24, Math.min(40, Math.floor(Math.min(W, H) / 16)));
+    sn.cols = Math.max(8, Math.floor((W - 16) / sn.cell));
+    sn.rows = Math.max(8, Math.floor((H - 130) / sn.cell));
+    sn.ox = Math.floor((W - sn.cols * sn.cell) / 2);
+    sn.oy = Math.floor((H - sn.rows * sn.cell) / 2);
+  }
+  function snHud() {
+    scoreEl.className = "score play";
+    scoreEl.innerHTML = '<span><b>' + sn.score + '</b> ' + (sn.score === 1 ? 'mosca' : 'moscas') + '</span><span>Récord ' + snBest + '</span>';
+  }
+  function snFood() {
+    var free = [];
+    for (var y = 0; y < sn.rows; y++) for (var x = 0; x < sn.cols; x++) {
+      var busy = false;
+      for (var i = 0; i < sn.body.length; i++) if (sn.body[i].x === x && sn.body[i].y === y) { busy = true; break; }
+      if (!busy) free.push({ x: x, y: y });
+    }
+    sn.fly = free.length ? free[Math.floor(Math.random() * free.length)] : null;
+  }
+  function snReset() {
+    sn.body = [{ x: Math.floor(sn.cols / 2), y: Math.floor(sn.rows / 2) }];   // body[0] = punta de la lengua (al frente); el último segmento = sapo (se queda atrás)
+    sn.dir = null; sn.face = { x: 0, y: -1 }; sn.q = [];
+    sn.score = 0; sn.dead = false; sn.acc = 0; sn.step = 150; sn.last = 0;
+    snFood(); snHud();
+  }
+  function snDir(dx, dy) {
+    if (sn.dead || !sn.on) return;
+    var ref = sn.q.length ? sn.q[sn.q.length - 1] : sn.dir;
+    if (ref && ref.x === dx && ref.y === dy) return;
+    if (ref && sn.body.length > 1 && ref.x === -dx && ref.y === -dy) return;   // no se puede dar la vuelta sobre la lengua
+    if (!sn.dir) { sn.dir = { x: dx, y: dy }; sn.face = sn.dir; sn.acc = sn.step; return; }
+    if (sn.q.length < 2) sn.q.push({ x: dx, y: dy });
+  }
+  function snDie(why) {
+    sn.dead = true;
+    if (sn.score > snBest) { snBest = sn.score; try { localStorage.setItem("anyisapa-snake-best", snBest); } catch (e) {} }
+    chime(false); snHud();
+    showCard(why === "wall" ? "¡Te estrellaste!" : "¡Te mordiste la lengua!",
+      "Comiste " + sn.score + (sn.score === 1 ? " mosca" : " moscas") + ". Récord: " + snBest + ".",
+      "Jugar de nuevo", function () { card.classList.remove("show"); snReset(); },
+      "Menú", exitSnake);
+  }
+  function snStep() {
+    if (!sn.dir) return;
+    if (sn.q.length) sn.dir = sn.q.shift();
+    sn.face = sn.dir;
+    var h = sn.body[0], nx = h.x + sn.dir.x, ny = h.y + sn.dir.y;
+    if (nx < 0 || ny < 0 || nx >= sn.cols || ny >= sn.rows) { snDie("wall"); return; }
+    var eat = !!sn.fly && nx === sn.fly.x && ny === sn.fly.y;
+    var limit = eat ? sn.body.length : sn.body.length - 1;   // la punta de la lengua se mueve si no come
+    for (var i = 0; i < limit; i++) if (sn.body[i].x === nx && sn.body[i].y === ny) { snDie("self"); return; }
+    sn.body.unshift({ x: nx, y: ny });
+    if (eat) {
+      sn.score++; gulp();
+      pop(sn.ox + nx * sn.cell + sn.cell / 2, sn.oy + ny * sn.cell + sn.cell / 2);
+      sn.step = Math.max(75, 150 - sn.score * 3);
+      snFood(); snHud(); bump();
+    } else sn.body.pop();
+  }
+  function drawFly(x, y, s, ts) {
+    var fl = 0.7 + 0.3 * Math.sin(ts / 35);
+    c2.save(); c2.translate(x, y);
+    c2.fillStyle = "rgba(232,251,255,.85)";
+    [-1, 1].forEach(function (d) {
+      c2.save(); c2.rotate(d * 0.6); c2.scale(1, fl);
+      c2.beginPath(); c2.ellipse(d * s * 0.7, -s * 0.5, s * 0.8, s * 0.42, 0, 0, 6.283); c2.fill();
+      c2.restore();
+    });
+    c2.fillStyle = "#2a2a2e"; c2.beginPath(); c2.ellipse(0, s * 0.3, s * 0.5, s * 0.75, 0, 0, 6.283); c2.fill();
+    c2.fillStyle = "#3a3a40"; c2.beginPath(); c2.arc(0, -s * 0.55, s * 0.42, 0, 6.283); c2.fill();
+    c2.fillStyle = "#e5283c";
+    c2.beginPath(); c2.arc(-s * 0.18, -s * 0.65, s * 0.17, 0, 6.283); c2.fill();
+    c2.beginPath(); c2.arc(s * 0.18, -s * 0.65, s * 0.17, 0, 6.283); c2.fill();
+    c2.restore();
+  }
+  function cellC(c) { return { x: sn.ox + c.x * sn.cell + sn.cell / 2, y: sn.oy + c.y * sn.cell + sn.cell / 2 }; }
+  function snDraw(ts) {
+    var cs = sn.cell, i, p;
+    var g = c2.createRadialGradient(W / 2, H * 0.6, 0, W / 2, H * 0.6, Math.max(W, H) * 0.7);
+    g.addColorStop(0, "#1b8a6b"); g.addColorStop(1, "#07403f");
+    c2.fillStyle = g; c2.fillRect(0, 0, W, H);
+    for (var r = 0; r < sn.rows; r++) for (var c = 0; c < sn.cols; c++) {
+      c2.fillStyle = (r + c) % 2 ? "rgba(255,255,255,.05)" : "rgba(0,0,0,.09)";
+      c2.fillRect(sn.ox + c * cs, sn.oy + r * cs, cs, cs);
+    }
+    c2.lineWidth = 3; c2.strokeStyle = "#fff1a8";
+    c2.strokeRect(sn.ox - 1.5, sn.oy - 1.5, sn.cols * cs + 3, sn.rows * cs + 3);
+
+    // mosca
+    if (sn.fly) {
+      p = cellC(sn.fly);
+      drawFly(p.x + Math.sin(ts / 90) * 1.5, p.y + Math.cos(ts / 70) * 1.5, cs * 0.42, ts);
+    }
+    // lengua (la cola)
+    if (sn.body.length > 1) {
+      c2.lineCap = "round"; c2.lineJoin = "round";
+      c2.beginPath();
+      for (i = 0; i < sn.body.length; i++) { p = cellC(sn.body[i]); if (i) c2.lineTo(p.x, p.y); else c2.moveTo(p.x, p.y); }
+      c2.strokeStyle = "#ff4f87"; c2.lineWidth = cs * 0.52; c2.stroke();
+      c2.strokeStyle = "#ff9fbd"; c2.lineWidth = cs * 0.14; c2.stroke();
+      p = cellC(sn.body[0]);   // la punta de la lengua va al frente
+      c2.fillStyle = "#ff6b9a"; c2.beginPath(); c2.arc(p.x, p.y, cs * 0.34, 0, 6.283); c2.fill();
+    }
+    // sapo: se queda atrás, al final de la lengua, mirando hacia donde sale la lengua
+    var last = sn.body.length - 1, d = sn.face;
+    if (last > 0) {
+      var a = sn.body[last - 1], b = sn.body[last];
+      d = { x: a.x - b.x, y: a.y - b.y };
+    }
+    var h = cellC(sn.body[last]), pr = { x: -d.y, y: d.x }, R = cs * 0.56;
+    c2.lineWidth = 3; c2.strokeStyle = sn.dead ? "#c0243a" : "#1d6b2c"; c2.fillStyle = "#4cc24a";
+    c2.beginPath(); c2.arc(h.x, h.y, R, 0, 6.283); c2.fill(); c2.stroke();
+    [-1, 1].forEach(function (k) {
+      var ex = h.x + d.x * R * 0.45 + pr.x * k * R * 0.5, ey = h.y + d.y * R * 0.45 + pr.y * k * R * 0.5;
+      c2.lineWidth = 2.5; c2.fillStyle = "#4cc24a"; c2.beginPath(); c2.arc(ex, ey, R * 0.42, 0, 6.283); c2.fill(); c2.stroke();
+      c2.fillStyle = "#fff"; c2.beginPath(); c2.arc(ex, ey, R * 0.3, 0, 6.283); c2.fill();
+      c2.fillStyle = "#161616"; c2.beginPath(); c2.arc(ex + d.x * R * 0.08, ey + d.y * R * 0.08, R * 0.15, 0, 6.283); c2.fill();
+    });
+    if (!sn.dir && !sn.dead) {
+      c2.font = '24px "Bagel Fat One", Impact, sans-serif'; c2.textAlign = "center"; c2.fillStyle = "#fff1a8";
+      c2.fillText("Desliza o usa las flechas", W / 2, sn.oy + sn.rows * cs * 0.28);
+    }
+  }
+  function snLoop(ts) {
+    if (!sn.on) return;
+    var dt = sn.last ? Math.min(100, ts - sn.last) : 0; sn.last = ts;
+    if (!sn.dead && sn.dir) {
+      sn.acc += dt;
+      while (sn.acc >= sn.step && !sn.dead) { sn.acc -= sn.step; snStep(); }
+    }
+    snDraw(ts);
+    sn.raf = requestAnimationFrame(snLoop);
+  }
+  function startSnake() {
+    initAudio();
+    game.mode = "snake";
+    startBox.classList.add("hide"); card.classList.remove("show");
+    cv.hidden = false; exitBtn.hidden = false;
+    sn.on = true; snSetup(); snReset();
+    cancelAnimationFrame(sn.raf); sn.raf = requestAnimationFrame(snLoop);
+  }
+  function exitSnake() {
+    sn.on = false; cancelAnimationFrame(sn.raf);
+    cv.hidden = true; exitBtn.hidden = true; card.classList.remove("show");
+    game.mode = "free"; startBox.classList.remove("hide"); renderHud();
+  }
+  document.getElementById("snakeBtn").addEventListener("click", startSnake);
+  exitBtn.addEventListener("click", exitSnake);
+  addEventListener("resize", function () { if (sn.on) { snSetup(); snReset(); card.classList.remove("show"); } });
+  addEventListener("keydown", function (e) {
+    if (!sn.on) return;
+    var k = e.key, v = null;
+    if (k === "ArrowUp" || k === "w" || k === "W") v = [0, -1];
+    else if (k === "ArrowDown" || k === "s" || k === "S") v = [0, 1];
+    else if (k === "ArrowLeft" || k === "a" || k === "A") v = [-1, 0];
+    else if (k === "ArrowRight" || k === "d" || k === "D") v = [1, 0];
+    if (!v) return;
+    e.preventDefault(); snDir(v[0], v[1]);
+  });
+  cv.addEventListener("pointerdown", function (e) { sn.px = e.clientX; sn.py = e.clientY; });
+  cv.addEventListener("pointermove", function (e) {
+    if (sn.px === null) return;
+    var dx = e.clientX - sn.px, dy = e.clientY - sn.py;
+    if (Math.hypot(dx, dy) < 22) return;
+    if (Math.abs(dx) > Math.abs(dy)) snDir(dx > 0 ? 1 : -1, 0); else snDir(0, dy > 0 ? 1 : -1);
+    sn.px = e.clientX; sn.py = e.clientY;
+  });
+  addEventListener("pointerup", function () { sn.px = null; });
+  addEventListener("pointercancel", function () { sn.px = null; });
+
   document.getElementById("playBtn").addEventListener("click", function () { initAudio(); startRound(1); });
   renderHud();
 
@@ -435,7 +627,7 @@
     hint.classList.add("gone");
   }
   addEventListener("pointermove", setPointer);
-  addEventListener("pointerdown", function (e) { setPointer(e); initAudio(); croak(); });
+  addEventListener("pointerdown", function (e) { setPointer(e); initAudio(); if (game.mode !== "snake") croak(); });
 
   var t0 = performance.now();
   function frame(now) {
